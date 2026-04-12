@@ -2,10 +2,13 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use crate::render::RGB;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vec3(pub f64, pub f64, pub f64);
 
 impl Vec3 {
+    pub const ZERO: Vec3 = Vec3(0., 0., 0.);
+    pub const ONE: Vec3 = Vec3(1., 1., 1.);
+
     pub const fn x(&self) -> f64 {
         self.0
     }
