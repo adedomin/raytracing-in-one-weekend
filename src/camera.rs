@@ -1,4 +1,4 @@
-use std::hash::{BuildHasher, RandomState};
+use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 
 use crate::{hit::Hittable, ray::Ray, render::Image, vec3::Vec3};
 
@@ -19,17 +19,7 @@ pub struct Camera {
     // Pixel Δv
     p_d_v: Vec3,
     samples_pp: u8,
-}
-
-// from [0.0, 1.0)
-fn rand_f64() -> f64 {
-    // u32 should fit in an f64
-    let rand = RandomState::new().hash_one(()) % u32::MAX as u64;
-    rand as f64 / (u32::MAX as f64 + 1f64)
-}
-
-fn rand_f64_range(min: f64, max: f64) -> f64 {
-    min + (max - min) * rand_f64()
+    ray_recurse: u8,
 }
 
 impl Camera {
@@ -55,12 +45,14 @@ impl Camera {
             p_d_u,
             p_d_v,
             samples_pp: 100,
+            ray_recurse: 50,
         }
     }
 
     fn get_rand_ray(&self, w: f64, h: f64) -> Ray {
-        let w_r = rand_f64() - 0.5;
-        let h_r = rand_f64() - 0.5;
+        const RAND_RANGE: std::ops::Range<f64> = -0.5..(0.5 + f64::EPSILON);
+        let w_r = rand::random_range(RAND_RANGE);
+        let h_r = rand::random_range(RAND_RANGE);
         let pix_sample = self.pix_orig + ((w + w_r) * self.p_d_u) + ((h + h_r) * self.p_d_v);
         Ray {
             orig: self.center,
@@ -68,15 +60,20 @@ impl Camera {
         }
     }
 
-    pub fn render<T: Hittable>(&self, world: &T, shader: impl Fn(Ray, &T) -> Vec3) -> Image {
+    pub fn render<T: Hittable + Send + Sync>(
+        &self,
+        world: &T,
+        shader: impl Fn(Ray, &T, u8) -> Vec3 + Send + Sync,
+    ) -> Image {
+        let xys = xyrange(0, self.width as u32, 0, self.height as u32).collect::<Vec<_>>();
         Image::new(
-            xyrange(0, self.width as u32, 0, self.height as u32)
+            xys.par_iter()
                 .map(|(w, h)| {
-                    let w = w as f64;
-                    let h = h as f64;
+                    let w = *w as f64;
+                    let h = *h as f64;
                     let sample_scaled = 1.0 / self.samples_pp as f64;
                     let sampled = (0..self.samples_pp)
-                        .map(|_| shader(self.get_rand_ray(w, h), world))
+                        .map(|_| shader(self.get_rand_ray(w, h), world, self.ray_recurse))
                         .fold(Vec3::ZERO, |acc, v| acc + v);
                     (sampled * sample_scaled).into()
                 })

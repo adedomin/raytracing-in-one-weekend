@@ -8,7 +8,7 @@ use crate::{
     ray::Ray,
     render::{Image, RGB},
     shapes::Sphere,
-    vec3::Vec3,
+    vec3::{Vec3, rand_on_hemi, safe_random_unit_vec},
 };
 
 fn xyrange(sx: u32, ex: u32, sy: u32, ey: u32) -> impl Iterator<Item = (u32, u32)> {
@@ -57,6 +57,25 @@ fn p6_ray_color<T: Hittable>(ray: Ray, world: &T) -> Vec3 {
     }
 }
 
+fn p9_ray_color<T: Hittable>(ray: Ray, world: &T, depth: u8) -> Vec3 {
+    if depth == 0 {
+        return Vec3::ZERO;
+    }
+
+    // 0.001 to reduce shadow acne.
+    if let Some(hit) = world.hit(&ray, &(0.001f64..).into()) {
+        // let new_rand_ray_dir = rand_on_hemi(hit.norm);
+        let new_rand_ray_dir = hit.norm + safe_random_unit_vec();
+        let new_ray = Ray {
+            orig: hit.p,
+            dir: new_rand_ray_dir,
+        };
+        0.1 * p9_ray_color(new_ray, world, depth - 1)
+    } else {
+        p4_ray_color(ray)
+    }
+}
+
 pub fn p4() -> Image {
     let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 400.);
 
@@ -65,5 +84,5 @@ pub fn p4() -> Image {
         Sphere::new(Vec3(0., -100.5, -1.), 100.),
     ];
 
-    camera.render(&world, p6_ray_color)
+    camera.render(&world, p9_ray_color)
 }

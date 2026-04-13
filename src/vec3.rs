@@ -46,6 +46,33 @@ impl Vec3 {
     }
 }
 
+pub fn rand_vec3_range(r: std::ops::Range<f64>) -> Vec3 {
+    Vec3(
+        rand::random_range(r.clone()),
+        rand::random_range(r.clone()),
+        rand::random_range(r),
+    )
+}
+
+pub fn rand_vec3() -> Vec3 {
+    rand_vec3_range(0.0..1.)
+}
+
+pub fn safe_random_unit_vec() -> Vec3 {
+    loop {
+        let v = rand_vec3_range(-1.0..1.);
+        let lensq = v.length_squared();
+        if 1.0e-160 < lensq && lensq <= 1. {
+            return v / lensq.sqrt();
+        }
+    }
+}
+
+pub fn rand_on_hemi(norm: Vec3) -> Vec3 {
+    let r = safe_random_unit_vec();
+    if r.dot(norm) > 0.0 { r } else { -r }
+}
+
 impl Neg for Vec3 {
     type Output = Self;
 
@@ -104,9 +131,17 @@ impl Div<f64> for Vec3 {
 
 const COLOR_INTERVAL: HitRange = HitRange::new(0., 0.999);
 
+fn lin_to_gamma(lin: f64) -> f64 {
+    if lin > 0. { lin.sqrt() } else { lin }
+}
+
 impl From<Vec3> for RGB {
     fn from(value: Vec3) -> Self {
         let Vec3(r, g, b) = value;
+        let r = lin_to_gamma(r);
+        let g = lin_to_gamma(g);
+        let b = lin_to_gamma(b);
+
         let r = (COLOR_INTERVAL.clamp(r) * 256f64) as u8;
         let g = (COLOR_INTERVAL.clamp(g) * 256f64) as u8;
         let b = (COLOR_INTERVAL.clamp(b) * 256f64) as u8;

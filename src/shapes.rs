@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use crate::{
     hit::{HitRange, HitRec, Hittable},
     ray::Ray,
