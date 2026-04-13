@@ -3,8 +3,10 @@
 use std::f64;
 
 use crate::{
+    hit::{self, Hittable},
     ray::Ray,
     render::{Image, RGB},
+    shapes::Sphere,
     vec3::Vec3,
 };
 
@@ -36,30 +38,32 @@ fn p4_ray_color(ray: Ray) -> RGB {
     ((1.0 - a) * Vec3::ONE + a * Vec3(0.5, 0.7, 1.0)).into()
 }
 
-// solves for time using quadratic formula to see if a given ray intersects a given sphere.
-fn hit_sphere(c: Vec3, rad: f64, r: &Ray) -> Option<f64> {
-    let partial_c = c - r.orig;
-    let a = r.dir.dot(r.dir);
-    let b = -2. * r.dir.dot(partial_c);
-    let c = partial_c.dot(partial_c) - rad * rad;
-    let discrim = b.powi(2) - 4f64 * a * c;
-    (discrim >= 0.).then(move || (-b - discrim.sqrt()) / (2. * a))
-}
-
 fn p5_ray_color(ray: Ray) -> RGB {
-    if let Some(t) = hit_sphere(Vec3(0., 0., -1.), 0.5, &ray) {
-        let surface_p = (ray.at(t) - Vec3(0., 0., -1.)).unit_vector();
+    let sphere = Sphere::new(Vec3(0., 0., -1.0), 0.5);
+    if let Some(hit) = sphere.hit(&ray, &hit::lim::ZERO_TO) {
+        let surface_p = (hit.p - Vec3(0., 0., -1.)).unit_vector();
         (0.5 * (surface_p + Vec3::ONE)).into()
     } else {
-        let unit_dir = ray.dir.unit_vector();
-        let a = 0.5 * (unit_dir.y() + 1.0);
-        ((1.0 - a) * Vec3::ONE + a * Vec3(0.5, 0.7, 1.0)).into()
+        p4_ray_color(ray)
+    }
+}
+
+fn p6_ray_color<T: Hittable>(ray: Ray, world: &T) -> RGB {
+    if let Some(hit) = world.hit(&ray, &hit::lim::ZERO_TO) {
+        (0.5 * (hit.norm + Vec3::ONE)).into()
+    } else {
+        p4_ray_color(ray)
     }
 }
 
 pub fn p4() -> Image {
     let img_w = 400f64;
     let img_h = (img_w / WIDE_RATIO).clamp(1f64, u32::MAX as f64).trunc();
+
+    let world = vec![
+        Sphere::new(Vec3(0., 0., -1.), 0.5),
+        Sphere::new(Vec3(0., -100.5, -1.), 100.),
+    ];
 
     let camera = Vec3::ZERO;
     let focal = 1f64;
@@ -80,10 +84,13 @@ pub fn p4() -> Image {
             let w = w as f64;
             let h = h as f64;
             let pix_center = pix_0 + (w * pix_u_delta) + (h * pix_v_delta);
-            p5_ray_color(Ray {
-                orig: camera,
-                dir: pix_center - camera,
-            })
+            p6_ray_color(
+                Ray {
+                    orig: camera,
+                    dir: pix_center - camera,
+                },
+                &world,
+            )
         })
         .collect();
     Image::new(rend, img_w as u32, img_h as u32)

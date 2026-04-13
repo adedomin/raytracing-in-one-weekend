@@ -5,8 +5,10 @@ use std::{
 };
 
 mod gens;
+mod hit;
 mod ray;
 mod render;
+mod shapes;
 mod vec3;
 
 fn open_out() -> (String, impl Write) {
