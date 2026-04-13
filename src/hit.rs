@@ -65,6 +65,10 @@ impl HitRange {
     pub fn contains(&self, x: f64) -> bool {
         self.start <= x && x <= self.end
     }
+
+    pub fn clamp(&self, x: f64) -> f64 {
+        x.clamp(self.start, self.end)
+    }
 }
 
 impl HitRec {

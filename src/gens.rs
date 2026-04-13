@@ -3,6 +3,7 @@
 use std::f64;
 
 use crate::{
+    camera::Camera,
     hit::{self, Hittable},
     ray::Ray,
     render::{Image, RGB},
@@ -32,66 +33,37 @@ pub fn initial() -> Image {
 
 const WIDE_RATIO: f64 = 16f64 / 9f64;
 
-fn p4_ray_color(ray: Ray) -> RGB {
+fn p4_ray_color(ray: Ray) -> Vec3 {
     let unit_dir = ray.dir.unit_vector();
     let a = 0.5 * (unit_dir.y() + 1.0);
-    ((1.0 - a) * Vec3::ONE + a * Vec3(0.5, 0.7, 1.0)).into()
+    (1.0 - a) * Vec3::ONE + a * Vec3(0.5, 0.7, 1.0)
 }
 
-fn p5_ray_color(ray: Ray) -> RGB {
+fn p5_ray_color(ray: Ray) -> Vec3 {
     let sphere = Sphere::new(Vec3(0., 0., -1.0), 0.5);
     if let Some(hit) = sphere.hit(&ray, &hit::lim::ZERO_TO) {
         let surface_p = (hit.p - Vec3(0., 0., -1.)).unit_vector();
-        (0.5 * (surface_p + Vec3::ONE)).into()
+        0.5 * (surface_p + Vec3::ONE)
     } else {
         p4_ray_color(ray)
     }
 }
 
-fn p6_ray_color<T: Hittable>(ray: Ray, world: &T) -> RGB {
+fn p6_ray_color<T: Hittable>(ray: Ray, world: &T) -> Vec3 {
     if let Some(hit) = world.hit(&ray, &hit::lim::ZERO_TO) {
-        (0.5 * (hit.norm + Vec3::ONE)).into()
+        0.5 * (hit.norm + Vec3::ONE)
     } else {
         p4_ray_color(ray)
     }
 }
 
 pub fn p4() -> Image {
-    let img_w = 400f64;
-    let img_h = (img_w / WIDE_RATIO).clamp(1f64, u32::MAX as f64).trunc();
+    let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 400.);
 
     let world = vec![
         Sphere::new(Vec3(0., 0., -1.), 0.5),
         Sphere::new(Vec3(0., -100.5, -1.), 100.),
     ];
 
-    let camera = Vec3::ZERO;
-    let focal = 1f64;
-
-    let view_h = 2f64;
-    let view_w = view_h * (img_w / img_h);
-    let view_u = Vec3(view_w, 0f64, 0f64);
-    let view_v = Vec3(0f64, -view_h, 0f64);
-
-    let pix_u_delta = view_u / img_w;
-    let pix_v_delta = view_v / img_h;
-
-    let view_left = camera - Vec3(0.0, 0.0, focal) - (view_u / 2.0) - (view_v / 2.0);
-    let pix_0 = view_left + (0.5 * (pix_u_delta + pix_v_delta));
-
-    let rend = xyrange(0, img_w as u32, 0, img_h as u32)
-        .map(|(w, h)| {
-            let w = w as f64;
-            let h = h as f64;
-            let pix_center = pix_0 + (w * pix_u_delta) + (h * pix_v_delta);
-            p6_ray_color(
-                Ray {
-                    orig: camera,
-                    dir: pix_center - camera,
-                },
-                &world,
-            )
-        })
-        .collect();
-    Image::new(rend, img_w as u32, img_h as u32)
+    camera.render(&world, p6_ray_color)
 }

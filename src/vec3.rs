@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use crate::render::RGB;
+use crate::{hit::HitRange, render::RGB};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vec3(pub f64, pub f64, pub f64);
@@ -102,17 +102,14 @@ impl Div<f64> for Vec3 {
     }
 }
 
+const COLOR_INTERVAL: HitRange = HitRange::new(0., 0.999);
+
 impl From<Vec3> for RGB {
     fn from(value: Vec3) -> Self {
-        let r: u8 = ((value.0 * 255.999f64).trunc() as i16)
-            .try_into()
-            .expect("red channle out of range.");
-        let g: u8 = ((value.1 * 255.999f64).trunc() as i16)
-            .try_into()
-            .expect("green channel out of range.");
-        let b: u8 = ((value.2 * 255.999f64).trunc() as i16)
-            .try_into()
-            .expect("blue channel out of range.");
+        let Vec3(r, g, b) = value;
+        let r = (COLOR_INTERVAL.clamp(r) * 256f64) as u8;
+        let g = (COLOR_INTERVAL.clamp(g) * 256f64) as u8;
+        let b = (COLOR_INTERVAL.clamp(b) * 256f64) as u8;
         [r, g, b]
     }
 }

@@ -25,8 +25,16 @@ impl Hittable for Sphere {
         let c = partial_c.length_squared() - self.rad.powi(2);
         let discrim = h.powi(2) - a * c;
         (discrim >= 0.)
-            .then(|| (h - discrim.sqrt()) / a)
-            .filter(|&t| t_lim.contains(t))
+            .then(|| {
+                let sq = discrim.sqrt();
+                ((h - sq) / a, (h + sq) / a)
+            })
+            .and_then(|(t1, t2)| {
+                t_lim
+                    .surrounds(t1)
+                    .then_some(t1)
+                    .or(t_lim.surrounds(t2).then_some(t2))
+            })
             .map(move |t| {
                 let p = r.at(t);
                 let norm = (p - self.center) / self.rad;
@@ -37,13 +45,14 @@ impl Hittable for Sphere {
 
 impl<T: Hittable> Hittable for Vec<T> {
     fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec> {
+        //// enum all
         // self.iter()
         //     .flat_map(|h| h.hit(r, t_lim))
         //     .reduce(|h1, h2| if h1.t <= h2.t { h1 } else { h2 })
 
-        // This is how the author does it.
+        //// This is (sort of) how the author does it.
         self.iter()
-            .fold((t_lim.start, None), |(tmax, h), curr| {
+            .fold((t_lim.end, None), |(tmax, h), curr| {
                 curr.hit(r, &(t_lim.start..tmax).into())
                     .map(|h| (h.t, Some(h)))
                     .unwrap_or((tmax, h))
