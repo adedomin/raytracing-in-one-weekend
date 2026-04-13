@@ -131,16 +131,16 @@ impl Div<f64> for Vec3 {
 
 const COLOR_INTERVAL: HitRange = HitRange::new(0., 0.999);
 
-fn lin_to_gamma(lin: f64) -> f64 {
-    if lin > 0. { lin.sqrt() } else { lin }
+fn lin_to_srgb_gamma(lin: f64) -> f64 {
+    if lin > 0. { lin.powf(1. / 2.2) } else { lin }
 }
 
 impl From<Vec3> for RGB {
     fn from(value: Vec3) -> Self {
         let Vec3(r, g, b) = value;
-        let r = lin_to_gamma(r);
-        let g = lin_to_gamma(g);
-        let b = lin_to_gamma(b);
+        let r = lin_to_srgb_gamma(r);
+        let g = lin_to_srgb_gamma(g);
+        let b = lin_to_srgb_gamma(b);
 
         let r = (COLOR_INTERVAL.clamp(r) * 256f64) as u8;
         let g = (COLOR_INTERVAL.clamp(g) * 256f64) as u8;
