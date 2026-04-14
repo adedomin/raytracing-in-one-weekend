@@ -7,6 +7,7 @@ use std::{
 mod camera;
 mod gens;
 mod hit;
+mod material;
 mod ray;
 mod render;
 mod shapes;

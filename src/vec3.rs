@@ -6,8 +6,8 @@ use crate::{hit::HitRange, render::RGB};
 pub struct Vec3(pub f64, pub f64, pub f64);
 
 impl Vec3 {
-    pub const ZERO: Vec3 = Vec3(0., 0., 0.);
-    pub const ONE: Vec3 = Vec3(1., 1., 1.);
+    pub const ZERO: Vec3 = Vec3::splat(0.);
+    pub const ONE: Vec3 = Vec3::splat(1.);
 
     pub const fn x(&self) -> f64 {
         self.0
@@ -43,6 +43,19 @@ impl Vec3 {
     pub fn unit_vector(self) -> Self {
         let len = self.length();
         self / len
+    }
+
+    pub fn near_zero(&self) -> bool {
+        const NEAR: std::ops::Range<f64> = -1e-8f64..1e-8f64;
+        NEAR.contains(&self.0) && NEAR.contains(&self.1) && NEAR.contains(&self.2)
+    }
+
+    pub fn reflect(self, rhs: Self) -> Self {
+        self - 2. * self.dot(rhs) * rhs
+    }
+
+    pub const fn splat(s: f64) -> Self {
+        Vec3(s, s, s)
     }
 }
 

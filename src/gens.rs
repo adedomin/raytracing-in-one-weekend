@@ -5,6 +5,7 @@ use std::f64;
 use crate::{
     camera::Camera,
     hit::{self, Hittable},
+    material::{Material, Mats, Scatter},
     ray::Ray,
     render::{Image, RGB},
     shapes::Sphere,
@@ -40,7 +41,7 @@ fn p4_ray_color(ray: Ray) -> Vec3 {
 }
 
 fn p5_ray_color(ray: Ray) -> Vec3 {
-    let sphere = Sphere::new(Vec3(0., 0., -1.0), 0.5);
+    let sphere = Sphere::new(Vec3(0., 0., -1.0), 0.5, Mats::None);
     if let Some(hit) = sphere.hit(&ray, &hit::lim::ZERO_TO) {
         let surface_p = (hit.p - Vec3(0., 0., -1.)).unit_vector();
         0.5 * (surface_p + Vec3::ONE)
@@ -76,13 +77,36 @@ fn p9_ray_color<T: Hittable>(ray: Ray, world: &T, depth: u8) -> Vec3 {
     }
 }
 
+fn p10_ray_color<T: Hittable + Material>(ray: Ray, world: &T, depth: u8) -> Vec3 {
+    if depth == 0 {
+        return Vec3::ZERO;
+    }
+
+    if let Some(hit) = world.hit(&ray, &(0.001f64..).into()) {
+        if let Some(Scatter { attenuation, dir }) = world.scatter(&ray, &hit) {
+            attenuation * p10_ray_color(dir, world, depth - 1)
+        } else {
+            Vec3::ZERO
+        }
+    } else {
+        p4_ray_color(ray)
+    }
+}
+
 pub fn p4() -> Image {
     let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 400.);
 
+    let ground_mat = Mats::Lambertian(Vec3(0.8, 0.8, 0.0));
+    let mat_cent = Mats::Lambertian(Vec3(0.1, 0.2, 0.5));
+    let mat_left = Mats::Metal(Vec3(0.8, 0.8, 0.8), 0.3);
+    let mat_right = Mats::Metal(Vec3(0.8, 0.6, 0.2), 1.0);
+
     let world = vec![
-        Sphere::new(Vec3(0., 0., -1.), 0.5),
-        Sphere::new(Vec3(0., -100.5, -1.), 100.),
+        Sphere::new(Vec3(0., -100.5, -1.), 100., ground_mat),
+        Sphere::new(Vec3(0., 0., -1.2), 0.5, mat_cent),
+        Sphere::new(Vec3(-1., 0., -1.), 0.5, mat_left),
+        Sphere::new(Vec3(1., 0., -1.), 0.5, mat_right),
     ];
 
-    camera.render(&world, p9_ray_color)
+    camera.render(&world, p10_ray_color)
 }

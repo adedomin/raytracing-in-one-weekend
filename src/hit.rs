@@ -16,6 +16,7 @@ pub struct HitRec {
     pub p: Vec3,
     pub norm: Vec3,
     pub face: bool,
+    pub ancillary: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -78,7 +79,18 @@ impl HitRec {
         } else {
             (false, -norm)
         };
-        Self { t, p, norm, face }
+        Self {
+            t,
+            p,
+            norm,
+            face,
+            ancillary: usize::MAX,
+        }
+    }
+
+    pub fn set_ancillary(mut self, ancillary: usize) -> Self {
+        self.ancillary = ancillary;
+        self
     }
 }
 

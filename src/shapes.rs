@@ -1,5 +1,6 @@
 use crate::{
     hit::{HitRange, HitRec, Hittable},
+    material::{Material, Mats},
     ray::Ray,
     vec3::Vec3,
 };
@@ -7,11 +8,12 @@ use crate::{
 pub struct Sphere {
     center: Vec3,
     rad: f64,
+    mat: Mats,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, rad: f64) -> Self {
-        Sphere { center, rad }
+    pub fn new(center: Vec3, rad: f64, mat: Mats) -> Self {
+        Sphere { center, rad, mat }
     }
 }
 
@@ -41,6 +43,12 @@ impl Hittable for Sphere {
     }
 }
 
+impl Material for Sphere {
+    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
+        self.mat.scatter(ray, hit)
+    }
+}
+
 impl<T: Hittable> Hittable for Vec<T> {
     fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec> {
         //// enum all
@@ -50,11 +58,18 @@ impl<T: Hittable> Hittable for Vec<T> {
 
         //// This is (sort of) how the author does it.
         self.iter()
-            .fold((t_lim.end, None), |(tmax, h), curr| {
+            .enumerate()
+            .fold((t_lim.end, None), |(tmax, h), (i, curr)| {
                 curr.hit(r, &(t_lim.start..tmax).into())
-                    .map(|h| (h.t, Some(h)))
+                    .map(|h| (h.t, Some(h.set_ancillary(i))))
                     .unwrap_or((tmax, h))
             })
             .1
+    }
+}
+
+impl<T: Material> Material for Vec<T> {
+    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
+        self[hit.ancillary].scatter(ray, hit)
     }
 }
