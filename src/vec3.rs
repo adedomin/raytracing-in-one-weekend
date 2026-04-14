@@ -132,7 +132,11 @@ impl Div<f64> for Vec3 {
 const COLOR_INTERVAL: HitRange = HitRange::new(0., 0.999);
 
 fn lin_to_srgb_gamma(lin: f64) -> f64 {
-    if lin > 0. { lin.powf(1. / 2.2) } else { lin }
+    if lin <= 0.0031308 {
+        12.92 * lin
+    } else {
+        1.055 * lin.powf(1. / 2.4) - 0.055
+    }
 }
 
 impl From<Vec3> for RGB {
