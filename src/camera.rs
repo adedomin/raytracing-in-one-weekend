@@ -106,23 +106,12 @@ impl Camera {
     ) -> Image {
         let xys = xyrange(0, self.width as u32, 0, self.height as u32).collect::<Vec<_>>();
         #[cfg(feature = "progress")]
-        let tx = {
-            let (tx, rx) = std::sync::mpsc::channel();
-            let xys_len = xys.len();
-            std::thread::spawn(move || {
-                let bar = indicatif::ProgressBar::new(xys_len as u64).with_style(
-                    indicatif::ProgressStyle::with_template(
-                        "T {elapsed_precise} / ETA {eta_precise} {wide_bar} ({pos}/{len})",
-                    )
-                    .unwrap(),
-                );
-                while let Ok(false) = rx.recv() {
-                    bar.inc(1);
-                }
-                bar.finish();
-            });
-            tx
-        };
+        let bar = indicatif::ProgressBar::new(xys.len() as u64).with_style(
+            indicatif::ProgressStyle::with_template(
+                "T {elapsed_precise} / ETA {eta_precise} {wide_bar} ({pos}/{len})",
+            )
+            .unwrap(),
+        );
         let img = xys
             .par_iter()
             .map(|(w, h)| {
@@ -134,16 +123,12 @@ impl Camera {
                     .fold(Vec3::ZERO, |acc, v| acc + v);
                 let ret = (sampled * sample_scaled).into();
                 #[cfg(feature = "progress")]
-                {
-                    _ = tx.send(false);
-                }
+                bar.inc(1);
                 ret
             })
             .collect();
         #[cfg(feature = "progress")]
-        {
-            _ = tx.send(true).unwrap();
-        }
+        bar.abandon();
         Image::new(img, self.width as u32, self.height as u32)
     }
 }
