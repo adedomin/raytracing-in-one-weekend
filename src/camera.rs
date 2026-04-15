@@ -1,5 +1,7 @@
 use rand::random_range;
-use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
+use rayon::iter::{
+    IndexedParallelIterator as _, IntoParallelRefIterator as _, ParallelIterator as _,
+};
 
 use crate::{hit::Hittable, ray::Ray, render::Image, vec3::Vec3};
 
@@ -106,8 +108,6 @@ impl Camera {
         world: &T,
         shader: fn(Ray, &T, u8) -> Vec3,
     ) -> Image {
-        use rayon::iter::IndexedParallelIterator;
-
         let xys = xyrange_expanded(0, self.width as u32, 0, self.height as u32, self.samples_pp);
         #[cfg(feature = "progress")]
         let bar = indicatif::ProgressBar::new(xys.len() as u64 / self.samples_pp as u64)
