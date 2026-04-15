@@ -94,17 +94,19 @@ fn p10_ray_color<T: Hittable + Material>(ray: Ray, world: &T, depth: u8) -> Vec3
 }
 
 pub fn p4() -> Image {
-    let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 400.);
+    let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 1080.);
 
     let ground_mat = Mats::Lambertian(Vec3(0.8, 0.8, 0.0));
     let mat_cent = Mats::Lambertian(Vec3(0.1, 0.2, 0.5));
-    let mat_left = Mats::Metal(Vec3(0.8, 0.8, 0.8), 0.3);
+    let mat_left = Mats::Dielectric(1.5);
+    let mat_left_bubble = Mats::Dielectric(1.0 / 1.5);
     let mat_right = Mats::Metal(Vec3(0.8, 0.6, 0.2), 1.0);
 
     let world = vec![
         Sphere::new(Vec3(0., -100.5, -1.), 100., ground_mat),
         Sphere::new(Vec3(0., 0., -1.2), 0.5, mat_cent),
         Sphere::new(Vec3(-1., 0., -1.), 0.5, mat_left),
+        Sphere::new(Vec3(-1., 0., -1.), 0.4, mat_left_bubble),
         Sphere::new(Vec3(1., 0., -1.), 0.5, mat_right),
     ];
 

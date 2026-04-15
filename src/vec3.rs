@@ -54,9 +54,20 @@ impl Vec3 {
         self - 2. * self.dot(rhs) * rhs
     }
 
+    pub fn refract(self, rhs: Self, etai_over_etat: f64) -> Self {
+        let cos_theta = self.neg().dot(rhs).min(1.0);
+        let r_out_perp = etai_over_etat * (self + cos_theta * rhs);
+        let r_out_par = (1.0 - r_out_perp.length_squared()).abs().sqrt().neg() * rhs;
+        r_out_perp + r_out_par
+    }
+
     pub const fn splat(s: f64) -> Self {
         Vec3(s, s, s)
     }
+}
+
+pub fn rand_double() -> f64 {
+    rand::random_range(0.0..1.)
 }
 
 pub fn rand_vec3_range(r: std::ops::Range<f64>) -> Vec3 {
