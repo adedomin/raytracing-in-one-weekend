@@ -40,8 +40,9 @@ fn view_out(filename: &str) {
 }
 
 fn main() {
+    let img = gens::final_rand().into_png();
     let (filename, mut out) = open_out();
-    out.write_all(&gens::final_rand().into_png()).unwrap();
+    out.write_all(&img).unwrap();
     out.flush().unwrap();
     drop(out);
     view_out(&filename);

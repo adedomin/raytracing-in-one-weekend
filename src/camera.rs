@@ -105,20 +105,45 @@ impl Camera {
         shader: impl Fn(Ray, &T, u8) -> Vec3 + Send + Sync,
     ) -> Image {
         let xys = xyrange(0, self.width as u32, 0, self.height as u32).collect::<Vec<_>>();
-        Image::new(
-            xys.par_iter()
-                .map(|(w, h)| {
-                    let w = *w as f64;
-                    let h = *h as f64;
-                    let sample_scaled = 1.0 / self.samples_pp as f64;
-                    let sampled = (0..self.samples_pp)
-                        .map(|_| shader(self.get_rand_ray(w, h), world, self.ray_recurse))
-                        .fold(Vec3::ZERO, |acc, v| acc + v);
-                    (sampled * sample_scaled).into()
-                })
-                .collect(),
-            self.width as u32,
-            self.height as u32,
-        )
+        #[cfg(feature = "progress")]
+        let tx = {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let xys_len = xys.len();
+            std::thread::spawn(move || {
+                let bar = indicatif::ProgressBar::new(xys_len as u64).with_style(
+                    indicatif::ProgressStyle::with_template(
+                        "T {elapsed_precise} / ETA {eta_precise} {wide_bar} ({pos}/{len})",
+                    )
+                    .unwrap(),
+                );
+                while let Ok(false) = rx.recv() {
+                    bar.inc(1);
+                }
+                bar.finish();
+            });
+            tx
+        };
+        let img = xys
+            .par_iter()
+            .map(|(w, h)| {
+                let w = *w as f64;
+                let h = *h as f64;
+                let sample_scaled = 1.0 / self.samples_pp as f64;
+                let sampled = (0..self.samples_pp)
+                    .map(|_| shader(self.get_rand_ray(w, h), world, self.ray_recurse))
+                    .fold(Vec3::ZERO, |acc, v| acc + v);
+                let ret = (sampled * sample_scaled).into();
+                #[cfg(feature = "progress")]
+                {
+                    _ = tx.send(false);
+                }
+                ret
+            })
+            .collect();
+        #[cfg(feature = "progress")]
+        {
+            _ = tx.send(true).unwrap();
+        }
+        Image::new(img, self.width as u32, self.height as u32)
     }
 }
