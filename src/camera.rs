@@ -1,5 +1,5 @@
 use rand::random_range;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator as _, ParallelIterator as _};
+use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 
 use crate::{hit::Hittable, ray::Ray, render::Image, vec3::Vec3};
 
