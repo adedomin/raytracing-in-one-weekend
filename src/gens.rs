@@ -14,7 +14,7 @@ use crate::{
     vec3::{Vec3, rand_double, rand_on_hemi, rand_vec3, safe_random_unit_vec},
 };
 
-fn xyrange(sx: u32, ex: u32, sy: u32, ey: u32) -> impl Iterator<Item = (u32, u32)> {
+fn xyrange(sx: i32, ex: i32, sy: i32, ey: i32) -> impl Iterator<Item = (i32, i32)> {
     (sy..ey).flat_map(move |j| (sx..ex).map(move |i| (i, j)))
 }
 
@@ -31,7 +31,7 @@ pub fn initial() -> Image {
             .into()
         })
         .collect();
-    Image::new(rend, width, height)
+    Image::new(rend, width as u32, height as u32)
 }
 
 const WIDE_RATIO: f64 = 16f64 / 9f64;
@@ -146,29 +146,25 @@ pub fn final_rand() -> Image {
     let ground_mat = Mats::Lambertian(Vec3(0.5, 0.5, 0.5));
     let mut world = vec![Sphere::new(Vec3(0., -1000., 0.), 1000., ground_mat)];
 
-    for a in -11..11 {
-        for b in -11..11 {
-            let choose = rand_double();
-            let center = Vec3(
-                a as f64 + 0.9 * rand_double(),
-                0.2,
-                b as f64 + 0.9 * rand_double(),
-            );
-            if (center - Vec3(4., 0.2, 0.)).length() > 0.9 {
-                if choose < 0.8 {
-                    // diffuse
-                    let albedo = rand_vec3() * rand_vec3();
-                    world.push(Sphere::new(center, 0.2, Mats::Lambertian(albedo)));
-                } else if choose < 0.95 {
-                    let albedo = rand_vec3();
-                    let fuzz = random_range(0.0..0.5);
-                    world.push(Sphere::new(center, 0.2, Mats::Metal(albedo, fuzz)));
-                } else {
-                    world.push(Sphere::new(center, 0.2, Mats::Dielectric(1.5)));
-                }
+    xyrange(-11, 11, -11, 11).for_each(|(b, a)| {
+        let b = b as f64;
+        let a = a as f64;
+        let choose = rand_double();
+        let center = Vec3(a + 0.9 * rand_double(), 0.2, b + 0.9 * rand_double());
+        if (center - Vec3(4., 0.2, 0.)).length() > 0.9 {
+            if choose < 0.8 {
+                // diffuse
+                let albedo = rand_vec3() * rand_vec3();
+                world.push(Sphere::new(center, 0.2, Mats::Lambertian(albedo)));
+            } else if choose < 0.95 {
+                let albedo = rand_vec3();
+                let fuzz = random_range(0.0..0.5);
+                world.push(Sphere::new(center, 0.2, Mats::Metal(albedo, fuzz)));
+            } else {
+                world.push(Sphere::new(center, 0.2, Mats::Dielectric(1.5)));
             }
         }
-    }
+    });
     world.push(Sphere::new(Vec3(0., 1., 0.), 1., Mats::Dielectric(1.5)));
     world.push(Sphere::new(
         Vec3(-4., 1., 0.),

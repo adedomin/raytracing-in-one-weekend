@@ -1,10 +1,12 @@
 use rand::random_range;
-use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator as _, ParallelIterator as _};
 
 use crate::{hit::Hittable, ray::Ray, render::Image, vec3::Vec3};
 
-fn xyrange(sx: u32, ex: u32, sy: u32, ey: u32) -> impl Iterator<Item = (u32, u32)> {
-    (sy..ey).flat_map(move |j| (sx..ex).map(move |i| (i, j)))
+fn xyrange_expanded(sx: u32, ex: u32, sy: u32, ey: u32, repeat: u32) -> Vec<(u32, u32)> {
+    (sy..ey)
+        .flat_map(move |j| (sx..ex).flat_map(move |i| std::iter::repeat_n((i, j), repeat as usize)))
+        .collect()
 }
 
 #[derive(Clone)]
@@ -102,31 +104,34 @@ impl Camera {
     pub fn render<T: Hittable + Send + Sync>(
         &self,
         world: &T,
-        shader: impl Fn(Ray, &T, u8) -> Vec3 + Send + Sync,
+        shader: fn(Ray, &T, u8) -> Vec3,
     ) -> Image {
-        let xys = xyrange(0, self.width as u32, 0, self.height as u32).collect::<Vec<_>>();
+        use rayon::iter::IndexedParallelIterator;
+
+        let xys = xyrange_expanded(0, self.width as u32, 0, self.height as u32, self.samples_pp);
         #[cfg(feature = "progress")]
-        let bar = indicatif::ProgressBar::new(xys.len() as u64).with_style(
-            indicatif::ProgressStyle::with_template(
-                "T {elapsed_precise} / ETA {eta_precise} {wide_bar} ({pos}/{len})",
-            )
-            .unwrap(),
-        );
-        let img = xys
+        let bar = indicatif::ProgressBar::new(xys.len() as u64 / self.samples_pp as u64)
+            .with_style(
+                indicatif::ProgressStyle::with_template(
+                    "T {elapsed_precise} / ETA {eta_precise} {wide_bar} ({pos}/{len})",
+                )
+                .unwrap(),
+            );
+        let sample_scaled = 1.0 / self.samples_pp as f64;
+        let img_iter = xys
             .par_iter()
             .map(|(w, h)| {
                 let w = *w as f64;
                 let h = *h as f64;
-                let sample_scaled = 1.0 / self.samples_pp as f64;
-                let sampled = (0..self.samples_pp)
-                    .map(|_| shader(self.get_rand_ray(w, h), world, self.ray_recurse))
-                    .fold(Vec3::ZERO, |acc, v| acc + v);
-                let ret = (sampled * sample_scaled).into();
-                #[cfg(feature = "progress")]
-                bar.inc(1);
-                ret
+                shader(self.get_rand_ray(w, h), world, self.ray_recurse)
             })
-            .collect();
+            .fold_chunks_with(self.samples_pp as usize, Vec3::ZERO, |acc, v| acc + v)
+            .map(|v| (v * sample_scaled).into());
+        #[cfg(feature = "progress")]
+        let img_iter = img_iter.inspect(|_| {
+            bar.inc(1);
+        });
+        let img = img_iter.collect();
         #[cfg(feature = "progress")]
         bar.abandon();
         Image::new(img, self.width as u32, self.height as u32)
