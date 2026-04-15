@@ -41,7 +41,7 @@ fn view_out(filename: &str) {
 
 fn main() {
     let (filename, mut out) = open_out();
-    out.write_all(&gens::p4().into_png()).unwrap();
+    out.write_all(&gens::final_rand().into_png()).unwrap();
     out.flush().unwrap();
     drop(out);
     view_out(&filename);

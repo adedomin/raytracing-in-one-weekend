@@ -2,6 +2,8 @@
 
 use std::f64;
 
+use rand::random_range;
+
 use crate::{
     camera::Camera,
     hit::{self, Hittable},
@@ -9,7 +11,7 @@ use crate::{
     ray::Ray,
     render::{Image, RGB},
     shapes::Sphere,
-    vec3::{Vec3, rand_on_hemi, safe_random_unit_vec},
+    vec3::{Vec3, rand_double, rand_on_hemi, rand_vec3, safe_random_unit_vec},
 };
 
 fn xyrange(sx: u32, ex: u32, sy: u32, ey: u32) -> impl Iterator<Item = (u32, u32)> {
@@ -94,7 +96,17 @@ fn p10_ray_color<T: Hittable + Material>(ray: Ray, world: &T, depth: u8) -> Vec3
 }
 
 pub fn p4() -> Image {
-    let camera = Camera::new(Vec3::ZERO, WIDE_RATIO, 1080.);
+    let camera = Camera::new(
+        WIDE_RATIO,
+        1080.,
+        20.,
+        3.4,
+        10.,
+        100,
+        Vec3(-2., 2., 1.),
+        Vec3(0., 0., -1.),
+        Vec3(0., 1., 0.),
+    );
 
     let ground_mat = Mats::Lambertian(Vec3(0.8, 0.8, 0.0));
     let mat_cent = Mats::Lambertian(Vec3(0.1, 0.2, 0.5));
@@ -109,6 +121,64 @@ pub fn p4() -> Image {
         Sphere::new(Vec3(-1., 0., -1.), 0.4, mat_left_bubble),
         Sphere::new(Vec3(1., 0., -1.), 0.5, mat_right),
     ];
+    // let r = (f64::consts::PI / 4.).cos();
+    // let world = vec![
+    //     Sphere::new(Vec3(-r, 0., -1.), r, Mats::Lambertian(Vec3(0., 0., 1.))),
+    //     Sphere::new(Vec3(r, 0., -1.), r, Mats::Lambertian(Vec3(1., 0., 0.))),
+    // ];
 
+    camera.render(&world, p10_ray_color)
+}
+
+pub fn final_rand() -> Image {
+    let camera = Camera::new(
+        WIDE_RATIO,
+        1200.,
+        20.,
+        10.,
+        0.6,
+        500,
+        Vec3(13., 2., 3.),
+        Vec3(0., 0., 0.),
+        Vec3(0., 1., 0.),
+    );
+
+    let ground_mat = Mats::Lambertian(Vec3(0.5, 0.5, 0.5));
+    let mut world = vec![Sphere::new(Vec3(0., -1000., 0.), 1000., ground_mat)];
+
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose = rand_double();
+            let center = Vec3(
+                a as f64 + 0.9 * rand_double(),
+                0.2,
+                b as f64 + 0.9 * rand_double(),
+            );
+            if (center - Vec3(4., 0.2, 0.)).length() > 0.9 {
+                if choose < 0.8 {
+                    // diffuse
+                    let albedo = rand_vec3() * rand_vec3();
+                    world.push(Sphere::new(center, 0.2, Mats::Lambertian(albedo)));
+                } else if choose < 0.95 {
+                    let albedo = rand_vec3();
+                    let fuzz = random_range(0.0..0.5);
+                    world.push(Sphere::new(center, 0.2, Mats::Metal(albedo, fuzz)));
+                } else {
+                    world.push(Sphere::new(center, 0.2, Mats::Dielectric(1.5)));
+                }
+            }
+        }
+    }
+    world.push(Sphere::new(Vec3(0., 1., 0.), 1., Mats::Dielectric(1.5)));
+    world.push(Sphere::new(
+        Vec3(-4., 1., 0.),
+        1.,
+        Mats::Lambertian(Vec3(0.4, 0.2, 0.1)),
+    ));
+    world.push(Sphere::new(
+        Vec3(4., 1., 0.),
+        1.,
+        Mats::Metal(Vec3(0.7, 0.6, 0.5), 0.0),
+    ));
     camera.render(&world, p10_ray_color)
 }
