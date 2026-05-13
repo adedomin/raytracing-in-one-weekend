@@ -118,7 +118,6 @@ impl Camera {
                 )
                 .unwrap(),
             );
-        let sample_scaled = 1.0 / self.samples_pp as f64;
         let img_iter = xys
             .par_iter()
             .map(|(w, h)| {
@@ -127,7 +126,7 @@ impl Camera {
                 shader(self.get_rand_ray(w, h), world, self.ray_recurse)
             })
             .fold_chunks_with(self.samples_pp as usize, DVec3::ZERO, |acc, v| acc + v)
-            .map(|v| to_srgb(v * sample_scaled));
+            .map(|v| to_srgb(v / self.samples_pp as f64));
         #[cfg(feature = "progress")]
         let img_iter = img_iter.inspect(|_| {
             bar.inc(1);
