@@ -3,20 +3,22 @@ use std::ops::Neg;
 use crate::{
     hit::HitRec,
     ray::Ray,
-    vec3::{Vec3, rand_double, safe_random_unit_vec},
+    vec_help::{not_near_zero, rand_double, safe_random_unit_vec},
 };
 
+use glam::DVec3;
+
 pub struct Scatter {
-    pub attenuation: Vec3,
+    pub attenuation: DVec3,
     pub dir: Ray,
 }
 
 #[derive(Clone, Copy)]
 pub enum Mats {
     None,
-    Lambertian(Vec3),
-    Metal(Vec3, f64),
-    Mirror(Vec3),
+    Lambertian(DVec3),
+    Metal(DVec3, f64),
+    Mirror(DVec3),
     Dielectric(f64),
 }
 
@@ -35,7 +37,7 @@ impl Material for Mats {
             Mats::None => None,
             Mats::Lambertian(albedo) => {
                 let dir = hit.norm + safe_random_unit_vec();
-                let dir = if dir.near_zero() { hit.norm } else { dir };
+                let dir = not_near_zero(dir).unwrap_or(hit.norm);
                 Some(Scatter {
                     attenuation: *albedo,
                     dir: Ray { orig: hit.p, dir },
@@ -44,7 +46,7 @@ impl Material for Mats {
             Mats::Metal(albedo, fuzz) => {
                 let fuzz = fuzz.clamp(0.0, 1.0);
                 let dir = ray.dir.reflect(hit.norm);
-                let dir = dir.unit_vector() + (fuzz * safe_random_unit_vec());
+                let dir = dir.normalize() + (fuzz * safe_random_unit_vec());
                 (dir.dot(hit.norm) > 0.).then_some(Scatter {
                     attenuation: *albedo,
                     dir: Ray { orig: hit.p, dir },
@@ -64,7 +66,7 @@ impl Material for Mats {
                     *refraction
                 };
 
-                let unit_d = ray.dir.unit_vector();
+                let unit_d = ray.dir.normalize();
                 let cos_theta = unit_d.neg().dot(hit.norm).min(1.0);
                 let sin_theta = (1. - cos_theta.powi(2)).sqrt();
 
@@ -77,7 +79,7 @@ impl Material for Mats {
                 };
 
                 Some(Scatter {
-                    attenuation: Vec3::ONE,
+                    attenuation: DVec3::ONE,
                     dir: Ray { orig: hit.p, dir },
                 })
             }

@@ -1,9 +1,10 @@
+use glam::DVec3;
 use rand::random_range;
 use rayon::iter::{
     IndexedParallelIterator as _, IntoParallelRefIterator as _, ParallelIterator as _,
 };
 
-use crate::{hit::Hittable, ray::Ray, render::Image, vec3::Vec3};
+use crate::{hit::Hittable, ray::Ray, render::Image, vec_help::to_srgb};
 
 fn xyrange_expanded(sx: u32, ex: u32, sy: u32, ey: u32, repeat: u32) -> Vec<(u32, u32)> {
     (sy..ey)
@@ -15,17 +16,17 @@ fn xyrange_expanded(sx: u32, ex: u32, sy: u32, ey: u32, repeat: u32) -> Vec<(u32
 pub struct Camera {
     width: f64,
     height: f64,
-    center: Vec3,
+    center: DVec3,
     // Pixel (0, 0) location
-    pix_orig: Vec3,
+    pix_orig: DVec3,
     // Pixel Δu
-    p_d_u: Vec3,
+    p_d_u: DVec3,
     // Pixel Δv
-    p_d_v: Vec3,
+    p_d_v: DVec3,
     samples_pp: u32,
     ray_recurse: u8,
-    defocus_u: Vec3,
-    defocus_v: Vec3,
+    defocus_u: DVec3,
+    defocus_v: DVec3,
     defocus_angle: f64,
 }
 
@@ -37,9 +38,9 @@ impl Camera {
         focal: f64,
         defocus_angle: f64,
         samples_pp: u32,
-        lookfrom: Vec3,
-        lookat: Vec3,
-        vup: Vec3,
+        lookfrom: DVec3,
+        lookat: DVec3,
+        vup: DVec3,
     ) -> Self {
         let height = (width / aspect_ratio).clamp(1., u32::MAX as f64).trunc();
 
@@ -49,8 +50,8 @@ impl Camera {
         let view_h = 2. * h * focal;
         let view_w = view_h * (width / height);
 
-        let w = (lookfrom - lookat).unit_vector();
-        let u = vup.cross(w).unit_vector();
+        let w = (lookfrom - lookat).normalize();
+        let u = vup.cross(w).normalize();
         let v = w.cross(u);
 
         let view_u = view_w * u;
@@ -79,14 +80,14 @@ impl Camera {
         }
     }
 
-    fn defocus_sample(&self) -> Vec3 {
+    fn defocus_sample(&self) -> DVec3 {
         let p = loop {
-            let p = Vec3(random_range(-1.0..1.0), random_range(-1.0..1.0), 0.);
+            let p = DVec3::new(random_range(-1.0..1.0), random_range(-1.0..1.0), 0.);
             if p.length_squared() < 1. {
                 break p;
             }
         };
-        self.center + (p.0 * self.defocus_u) + (p.1 * self.defocus_v)
+        self.center + (p.x * self.defocus_u) + (p.y * self.defocus_v)
     }
 
     fn get_rand_ray(&self, w: f64, h: f64) -> Ray {
@@ -106,7 +107,7 @@ impl Camera {
     pub fn render<T: Hittable + Send + Sync>(
         &self,
         world: &T,
-        shader: fn(Ray, &T, u8) -> Vec3,
+        shader: fn(Ray, &T, u8) -> DVec3,
     ) -> Image {
         let xys = xyrange_expanded(0, self.width as u32, 0, self.height as u32, self.samples_pp);
         #[cfg(feature = "progress")]
@@ -125,8 +126,8 @@ impl Camera {
                 let h = *h as f64;
                 shader(self.get_rand_ray(w, h), world, self.ray_recurse)
             })
-            .fold_chunks_with(self.samples_pp as usize, Vec3::ZERO, |acc, v| acc + v)
-            .map(|v| (v * sample_scaled).into());
+            .fold_chunks_with(self.samples_pp as usize, DVec3::ZERO, |acc, v| acc + v)
+            .map(|v| to_srgb(v * sample_scaled));
         #[cfg(feature = "progress")]
         let img_iter = img_iter.inspect(|_| {
             bar.inc(1);

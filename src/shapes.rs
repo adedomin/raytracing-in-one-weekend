@@ -1,18 +1,19 @@
+use glam::DVec3;
+
 use crate::{
     hit::{HitRange, HitRec, Hittable},
     material::{Material, Mats},
     ray::Ray,
-    vec3::Vec3,
 };
 
 pub struct Sphere {
-    center: Vec3,
+    center: DVec3,
     rad: f64,
     mat: Mats,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, rad: f64, mat: Mats) -> Self {
+    pub fn new(center: DVec3, rad: f64, mat: Mats) -> Self {
         Sphere { center, rad, mat }
     }
 }

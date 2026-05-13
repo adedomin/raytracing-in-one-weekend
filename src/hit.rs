@@ -3,7 +3,9 @@ use std::{
     ops::{Range, RangeFrom, RangeTo},
 };
 
-use crate::{ray::Ray, vec3::Vec3};
+use glam::DVec3;
+
+use crate::ray::Ray;
 
 pub mod lim {
     use crate::hit::HitRange;
@@ -13,8 +15,8 @@ pub mod lim {
 
 pub struct HitRec {
     pub t: f64,
-    pub p: Vec3,
-    pub norm: Vec3,
+    pub p: DVec3,
+    pub norm: DVec3,
     pub face: bool,
     pub ancillary: usize,
 }
@@ -73,7 +75,7 @@ impl HitRange {
 }
 
 impl HitRec {
-    pub fn new_gen_face(r: &Ray, t: f64, p: Vec3, norm: Vec3) -> Self {
+    pub fn new_gen_face(r: &Ray, t: f64, p: DVec3, norm: DVec3) -> Self {
         let (face, norm) = if r.dir.dot(norm) < 0. {
             (true, norm)
         } else {

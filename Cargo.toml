@@ -14,3 +14,4 @@ crc32fast = "1"
 rand = "0.10"
 rayon = "1"
 indicatif = { version = "0.18", optional = true }
+glam = "0.32"

@@ -11,7 +11,7 @@ mod material;
 mod ray;
 mod render;
 mod shapes;
-mod vec3;
+mod vec_help;
 
 fn open_out() -> (String, impl Write) {
     let fname = std::env::args()
