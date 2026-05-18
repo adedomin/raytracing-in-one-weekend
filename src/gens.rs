@@ -79,20 +79,21 @@ fn p9_ray_color<T: Hittable>(ray: Ray, world: &T, depth: u8) -> DVec3 {
     }
 }
 
-fn p10_ray_color<T: Hittable + Material>(ray: Ray, world: &T, depth: u8) -> DVec3 {
-    if depth == 0 {
-        return DVec3::ZERO;
-    }
-
-    if let Some(hit) = world.hit(&ray, &(0.001f64..).into()) {
-        if let Some(Scatter { attenuation, dir }) = world.scatter(&ray, &hit) {
-            attenuation * p10_ray_color(dir, world, depth - 1)
+fn p10_ray_color<T: Hittable + Material>(mut ray: Ray, world: &T, depth: u8) -> DVec3 {
+    let mut atn = DVec3::ONE;
+    for _ in 0..depth {
+        if let Some(hit) = world.hit(&ray, &(0.001f64..).into()) {
+            if let Some(Scatter { attenuation, dir }) = world.scatter(&ray, &hit) {
+                ray = dir;
+                atn *= attenuation;
+            } else {
+                return DVec3::ZERO;
+            }
         } else {
-            DVec3::ZERO
+            return atn * p4_ray_color(ray);
         }
-    } else {
-        p4_ray_color(ray)
     }
+    DVec3::ZERO
 }
 
 pub fn p4() -> Image {
