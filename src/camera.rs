@@ -7,9 +7,13 @@ use rayon::iter::{
 use crate::{hit::Hittable, ray::Ray, render::Image, vec_help::to_srgb};
 
 fn xyrange_expanded(sx: u32, ex: u32, sy: u32, ey: u32, repeat: u32) -> Vec<(u32, u32)> {
-    (sy..ey)
-        .flat_map(move |j| (sx..ex).flat_map(move |i| std::iter::repeat_n((i, j), repeat as usize)))
-        .collect()
+    let mut ret = Vec::with_capacity(((ex - sx) * (ey - sy) * repeat) as usize);
+    for y in sy..ey {
+        for x in sx..ex {
+            ret.extend(std::iter::repeat_n((x, y), repeat as usize));
+        }
+    }
+    ret
 }
 
 #[derive(Clone)]
