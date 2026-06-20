@@ -30,7 +30,9 @@ pub struct Camera {
     defocus_angle: f64,
 }
 
+#[bon::bon]
 impl Camera {
+    #[builder]
     pub fn new(
         aspect_ratio: f64,
         width: f64,
@@ -109,6 +111,7 @@ impl Camera {
         world: &T,
         shader: fn(Ray, &T, u8) -> DVec3,
     ) -> Image {
+        // TODO: Fix this, 3 seconds!
         let xys = xyrange_expanded(0, self.width as u32, 0, self.height as u32, self.samples_pp);
         #[cfg(feature = "progress")]
         let bar = indicatif::ProgressBar::new(xys.len() as u64 / self.samples_pp as u64)

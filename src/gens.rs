@@ -6,6 +6,7 @@ use glam::DVec3;
 use rand::random_range;
 
 use crate::{
+    bvh::Bvh,
     camera::Camera,
     hit::{self, Hittable},
     material::{Material, Mats, Scatter},
@@ -43,8 +44,8 @@ fn p4_ray_color(ray: Ray) -> DVec3 {
 }
 
 fn p5_ray_color(ray: Ray) -> DVec3 {
-    let sphere = Sphere::new(DVec3::new(0., 0., -1.0), 0.5, Mats::None);
-    if let Some(hit) = sphere.hit(&ray, &hit::lim::ZERO_TO) {
+    let sphere = (Sphere::new(DVec3::new(0., 0., -1.0), 0.5), Mats::None);
+    if let Some(hit) = Hittable::hit(&sphere, &ray, &hit::lim::ZERO_TO) {
         let surface_p = (hit.p - DVec3::new(0., 0., -1.)).normalize();
         0.5 * (surface_p + DVec3::ONE)
     } else {
@@ -96,56 +97,54 @@ fn p10_ray_color<T: Hittable + Material>(mut ray: Ray, world: &T, depth: u8) -> 
     DVec3::ZERO
 }
 
-pub fn p4() -> Image {
-    let camera = Camera::new(
-        WIDE_RATIO,
-        1080.,
-        20.,
-        3.4,
-        10.,
-        100,
-        DVec3::new(-2., 2., 1.),
-        DVec3::new(0., 0., -1.),
-        DVec3::new(0., 1., 0.),
-    );
+// pub fn p4() -> Image {
+//     let camera = Camera::builder()
+//         .aspect_ratio(WIDE_RATIO)
+//         .width(1080.)
+//         .fov(20.)
+//         .focal(3.4)
+//         .defocus_angle(10.)
+//         .samples_pp(500)
+//         .lookfrom(DVec3::new(-2., 2., 1.))
+//         .lookat(DVec3::NEG_Z)
+//         .vup(DVec3::Y)
+//         .build();
+//     let ground_mat = Mats::Lambertian(DVec3::new(0.8, 0.8, 0.0));
+//     let mat_cent = Mats::Lambertian(DVec3::new(0.1, 0.2, 0.5));
+//     let mat_left = Mats::Dielectric(1.5);
+//     let mat_left_bubble = Mats::Dielectric(1.0 / 1.5);
+//     let mat_right = Mats::Metal(DVec3::new(0.8, 0.6, 0.2), 1.0);
 
-    let ground_mat = Mats::Lambertian(DVec3::new(0.8, 0.8, 0.0));
-    let mat_cent = Mats::Lambertian(DVec3::new(0.1, 0.2, 0.5));
-    let mat_left = Mats::Dielectric(1.5);
-    let mat_left_bubble = Mats::Dielectric(1.0 / 1.5);
-    let mat_right = Mats::Metal(DVec3::new(0.8, 0.6, 0.2), 1.0);
+//     let world = vec![
+//         (Sphere::new(DVec3::new(0., -100.5, -1.), 100.), ground_mat),
+//         (Sphere::new(DVec3::new(0., 0., -1.2), 0.5), mat_cent),
+//         (Sphere::new(DVec3::new(-1., 0., -1.), 0.5), mat_left),
+//         (Sphere::new(DVec3::new(-1., 0., -1.), 0.4), mat_left_bubble),
+//         (Sphere::new(DVec3::new(1., 0., -1.), 0.5), mat_right),
+//     ];
+//     // let r = (f64::consts::PI / 4.).cos();
+//     // let world = vec![
+//     //     Sphere::new(DVec3(-r, 0., -1.), r, Mats::Lambertian(DVec3(0., 0., 1.))),
+//     //     Sphere::new(DVec3(r, 0., -1.), r, Mats::Lambertian(DVec3(1., 0., 0.))),
+//     // ];
 
-    let world = vec![
-        Sphere::new(DVec3::new(0., -100.5, -1.), 100., ground_mat),
-        Sphere::new(DVec3::new(0., 0., -1.2), 0.5, mat_cent),
-        Sphere::new(DVec3::new(-1., 0., -1.), 0.5, mat_left),
-        Sphere::new(DVec3::new(-1., 0., -1.), 0.4, mat_left_bubble),
-        Sphere::new(DVec3::new(1., 0., -1.), 0.5, mat_right),
-    ];
-    // let r = (f64::consts::PI / 4.).cos();
-    // let world = vec![
-    //     Sphere::new(DVec3(-r, 0., -1.), r, Mats::Lambertian(DVec3(0., 0., 1.))),
-    //     Sphere::new(DVec3(r, 0., -1.), r, Mats::Lambertian(DVec3(1., 0., 0.))),
-    // ];
-
-    camera.render(&world, p10_ray_color)
-}
+//     camera.render(|r, d| p10_ray_color(r, &world, d))
+// }
 
 pub fn final_rand() -> Image {
-    let camera = Camera::new(
-        WIDE_RATIO,
-        1200.,
-        20.,
-        10.,
-        0.6,
-        500,
-        DVec3::new(13., 2., 3.),
-        DVec3::new(0., 0., 0.),
-        DVec3::new(0., 1., 0.),
-    );
-
+    let camera = Camera::builder()
+        .aspect_ratio(WIDE_RATIO)
+        .width(1200.)
+        .fov(20.)
+        .focal(10.)
+        .defocus_angle(0.6)
+        .samples_pp(500)
+        .lookfrom(DVec3::new(13., 2., 3.))
+        .lookat(DVec3::ZERO)
+        .vup(DVec3::Y)
+        .build();
     let ground_mat = Mats::Lambertian(DVec3::new(0.5, 0.5, 0.5));
-    let mut world = vec![Sphere::new(DVec3::new(0., -1000., 0.), 1000., ground_mat)];
+    let mut world = vec![(Sphere::new(DVec3::new(0., -1000., 0.), 1000.), ground_mat)];
 
     xyrange(-11, 11, -11, 11).for_each(|(b, a)| {
         let b = b as f64;
@@ -156,30 +155,28 @@ pub fn final_rand() -> Image {
             if choose < 0.8 {
                 // diffuse
                 let albedo = rand_vec3() * rand_vec3();
-                world.push(Sphere::new(center, 0.2, Mats::Lambertian(albedo)));
+                world.push((Sphere::new(center, 0.2), Mats::Lambertian(albedo)));
             } else if choose < 0.95 {
                 let albedo = rand_vec3();
                 let fuzz = random_range(0.0..0.5);
-                world.push(Sphere::new(center, 0.2, Mats::Metal(albedo, fuzz)));
+                world.push((Sphere::new(center, 0.2), Mats::Metal(albedo, fuzz)));
             } else {
-                world.push(Sphere::new(center, 0.2, Mats::Dielectric(1.5)));
+                world.push((Sphere::new(center, 0.2), Mats::Dielectric(1.5)));
             }
         }
     });
-    world.push(Sphere::new(
-        DVec3::new(0., 1., 0.),
-        1.,
+    world.push((
+        Sphere::new(DVec3::new(0., 1., 0.), 1.),
         Mats::Dielectric(1.5),
     ));
-    world.push(Sphere::new(
-        DVec3::new(-4., 1., 0.),
-        1.,
+    world.push((
+        Sphere::new(DVec3::new(-4., 1., 0.), 1.),
         Mats::Lambertian(DVec3::new(0.4, 0.2, 0.1)),
     ));
-    world.push(Sphere::new(
-        DVec3::new(4., 1., 0.),
-        1.,
+    world.push((
+        Sphere::new(DVec3::new(4., 1., 0.), 1.),
         Mats::Metal(DVec3::new(0.7, 0.6, 0.5), 0.0),
     ));
-    camera.render(&world, p10_ray_color)
+    let bvh_wrld = Bvh::new(&mut world);
+    camera.render(&bvh_wrld, p10_ray_color)
 }

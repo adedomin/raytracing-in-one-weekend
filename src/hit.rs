@@ -5,7 +5,7 @@ use std::{
 
 use glam::DVec3;
 
-use crate::ray::Ray;
+use crate::{aabb::AABB, ray::Ray};
 
 pub mod lim {
     use crate::hit::HitRange;
@@ -57,6 +57,15 @@ impl HitRange {
         Self { start, end }
     }
 
+    pub const fn new_to_sorted(a: f64, b: f64) -> Self {
+        assert!(!a.is_nan(), "start cannot be NaN");
+        assert!(!b.is_nan(), "end cannot be NaN");
+        Self {
+            start: a.min(b),
+            end: a.max(b),
+        }
+    }
+
     pub fn size(&self) -> f64 {
         self.end - self.start
     }
@@ -71,6 +80,22 @@ impl HitRange {
 
     pub fn clamp(&self, x: f64) -> f64 {
         x.clamp(self.start, self.end)
+    }
+
+    pub fn pad(self, delta: f64) -> Self {
+        let delta = delta.abs();
+        HitRange {
+            start: self.start - delta,
+            end: self.end + delta,
+        }
+    }
+}
+
+impl From<(HitRange, HitRange)> for HitRange {
+    fn from((a, b): (HitRange, HitRange)) -> Self {
+        let start = a.start.min(b.start);
+        let end = a.end.max(b.end);
+        Self { start, end }
     }
 }
 
@@ -98,4 +123,5 @@ impl HitRec {
 
 pub trait Hittable {
     fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec>;
+    fn bounding_box(&self) -> AABB;
 }

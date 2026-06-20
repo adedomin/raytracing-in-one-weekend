@@ -4,6 +4,8 @@ use std::{
     process::Stdio,
 };
 
+mod aabb;
+mod bvh;
 mod camera;
 mod gens;
 mod hit;

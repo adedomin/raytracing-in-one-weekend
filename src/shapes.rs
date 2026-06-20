@@ -1,20 +1,19 @@
 use glam::DVec3;
 
 use crate::{
+    aabb::{self, AABB},
     hit::{HitRange, HitRec, Hittable},
-    material::{Material, Mats},
     ray::Ray,
 };
 
 pub struct Sphere {
     center: DVec3,
     rad: f64,
-    mat: Mats,
 }
 
 impl Sphere {
-    pub fn new(center: DVec3, rad: f64, mat: Mats) -> Self {
-        Sphere { center, rad, mat }
+    pub fn new(center: DVec3, rad: f64) -> Self {
+        Sphere { center, rad }
     }
 }
 
@@ -42,35 +41,47 @@ impl Hittable for Sphere {
                 HitRec::new_gen_face(r, t, p, norm)
             })
     }
-}
 
-impl Material for Sphere {
-    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
-        self.mat.scatter(ray, hit)
+    fn bounding_box(&self) -> AABB {
+        let rect_vec = DVec3::splat(self.rad);
+        AABB::from((self.center - rect_vec, self.center + rect_vec))
     }
 }
 
-impl<T: Hittable> Hittable for Vec<T> {
+macro_rules! impl_hittable_array_like {
+    ($ty:ty) => {
+        impl<T: Hittable> Hittable for $ty {
+            fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec> {
+                self.iter()
+                    .enumerate()
+                    .fold((t_lim.end, None), |(tmax, h), (i, curr)| {
+                        curr.hit(r, &(t_lim.start..tmax).into())
+                            .map(|h| (h.t, Some(h.set_ancillary(i))))
+                            .unwrap_or((tmax, h))
+                    })
+                    .1
+            }
+
+            fn bounding_box(&self) -> AABB {
+                self.iter()
+                    .map(|el| el.bounding_box())
+                    .reduce(|acc, el| AABB::from((acc, el)))
+                    .unwrap_or(aabb::EMPTY)
+            }
+        }
+    };
+}
+
+impl_hittable_array_like!(Vec<T>);
+impl_hittable_array_like!(&[T]);
+impl_hittable_array_like!(&mut [T]);
+
+impl<H: Hittable, M> Hittable for (H, M) {
     fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec> {
-        //// enum all
-        // self.iter()
-        //     .flat_map(|h| h.hit(r, t_lim))
-        //     .reduce(|h1, h2| if h1.t <= h2.t { h1 } else { h2 })
-
-        //// This is (sort of) how the author does it.
-        self.iter()
-            .enumerate()
-            .fold((t_lim.end, None), |(tmax, h), (i, curr)| {
-                curr.hit(r, &(t_lim.start..tmax).into())
-                    .map(|h| (h.t, Some(h.set_ancillary(i))))
-                    .unwrap_or((tmax, h))
-            })
-            .1
+        self.0.hit(r, t_lim)
     }
-}
 
-impl<T: Material> Material for Vec<T> {
-    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
-        self[hit.ancillary].scatter(ray, hit)
+    fn bounding_box(&self) -> AABB {
+        self.0.bounding_box()
     }
 }

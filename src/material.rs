@@ -86,3 +86,15 @@ impl Material for Mats {
         }
     }
 }
+
+impl<H, M: Material> Material for (H, M) {
+    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
+        self.1.scatter(ray, hit)
+    }
+}
+
+impl<H, M: Material> Material for &(H, M) {
+    fn scatter(&self, ray: &Ray, hit: &HitRec) -> Option<crate::material::Scatter> {
+        self.1.scatter(ray, hit)
+    }
+}
