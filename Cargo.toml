@@ -1,7 +1,10 @@
 [package]
 name = "raytracing-in-one-weekend"
 version = "0.1.0"
+rust-version = "1.96"
 edition = "2024"
+license = "ISC"
+authors = ["Anthony DeDominic"]
 
 [features]
 default = ["progress"]
