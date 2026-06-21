@@ -5,12 +5,12 @@ use crate::{
     ray::Ray,
 };
 
-enum BvhNode<'a, T: Hittable + Material> {
+enum BvhNode<'a, T: Hittable> {
     Tree(usize, usize, AABB),
     Leaf(&'a T),
 }
 
-pub struct Bvh<'a, T: Hittable + Material> {
+pub struct Bvh<'a, T: Hittable> {
     nodes: Vec<BvhNode<'a, T>>,
 }
 
@@ -19,7 +19,7 @@ enum BuildRec<'a, T> {
     SetRight(usize),
 }
 
-fn build_tree<'a, T: Hittable + Material>(hittables: &'a mut [T]) -> Vec<BvhNode<'a, T>> {
+fn build_tree<'a, T: Hittable>(hittables: &'a mut [T]) -> Vec<BvhNode<'a, T>> {
     // total nodes = 2leaf - 1
     let mut nodes: Vec<BvhNode<'a, T>> = Vec::with_capacity(hittables.len() * 2 - 1);
     let mut dfs = vec![BuildRec::Recurse(hittables)];
@@ -66,14 +66,14 @@ fn build_tree<'a, T: Hittable + Material>(hittables: &'a mut [T]) -> Vec<BvhNode
     nodes
 }
 
-impl<'a, T: Hittable + Material> Bvh<'a, T> {
+impl<'a, T: Hittable> Bvh<'a, T> {
     pub fn new(hittables: &'a mut [T]) -> Self {
         let nodes = build_tree(hittables);
         Self { nodes }
     }
 }
 
-impl<'a, T: Hittable + Material> Hittable for Bvh<'a, T> {
+impl<'a, T: Hittable> Hittable for Bvh<'a, T> {
     fn hit(&self, r: &Ray, t_lim: &HitRange) -> Option<HitRec> {
         let mut dfs = vec![(&self.nodes[0], 0, *t_lim)];
         let mut tmax = t_lim.end;
