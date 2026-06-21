@@ -14,47 +14,61 @@ pub struct Bvh<'a, T: Hittable + Material> {
     nodes: Vec<BvhNode<'a, T>>,
 }
 
-fn build_rec<'a, T: Hittable + Material>(nodes: &mut Vec<BvhNode<'a, T>>, hittables: &'a mut [T]) {
-    let bbox = hittables.bounding_box();
-    match hittables.len() {
-        0 => panic!("cannot be zero."),
-        1 => {
-            let root = BvhNode::Tree(nodes.len() + 1, nodes.len() + 1, bbox);
-            let l = BvhNode::Leaf(&hittables[0]);
-            nodes.push(root);
-            nodes.push(l);
-        }
-        2 => {
-            let root = BvhNode::Tree(nodes.len() + 1, nodes.len() + 2, bbox);
-            let l = BvhNode::Leaf(&hittables[0]);
-            let r = BvhNode::Leaf(&hittables[1]);
-            nodes.push(root);
-            nodes.push(l);
-            nodes.push(r);
-        }
-        _ => {
-            let axis_cmp = hittables.bounding_box().longest_axis();
-            hittables.sort_unstable_by_key(|h| h.bounding_box()[axis_cmp].start as u64);
-            let midpoint = hittables.len() / 2;
-            let (l, r) = hittables.split_at_mut(midpoint);
-            let root_idx = nodes.len();
-            let root = BvhNode::Tree(nodes.len() + 1, 0, bbox);
-            nodes.push(root);
-            build_rec(nodes, l);
-            let right_idx = nodes.len();
-            match &mut nodes[root_idx] {
-                BvhNode::Tree(_, right, _) => *right = right_idx,
-                _ => panic!("bad index"),
+enum BuildRec<'a, T> {
+    Recurse(&'a mut [T]),
+    SetRight(usize),
+}
+
+fn build_tree<'a, T: Hittable + Material>(hittables: &'a mut [T]) -> Vec<BvhNode<'a, T>> {
+    // total nodes = 2leaf - 1
+    let mut nodes: Vec<BvhNode<'a, T>> = Vec::with_capacity(hittables.len() * 2 - 1);
+    let mut dfs = vec![BuildRec::Recurse(hittables)];
+    while let Some(r) = dfs.pop() {
+        match r {
+            BuildRec::Recurse(hittables) => {
+                let bbox = hittables.bounding_box();
+                match hittables.len() {
+                    0 => panic!("cannot be zero."),
+                    1 => {
+                        nodes.push(BvhNode::Leaf(&hittables[0]));
+                    }
+                    2 => {
+                        let root = BvhNode::Tree(nodes.len() + 1, nodes.len() + 2, bbox);
+                        let l = BvhNode::Leaf(&hittables[0]);
+                        let r = BvhNode::Leaf(&hittables[1]);
+                        nodes.push(root);
+                        nodes.push(l);
+                        nodes.push(r);
+                    }
+                    _ => {
+                        let axis_cmp = hittables.bounding_box().longest_axis();
+                        hittables.sort_unstable_by_key(|h| h.bounding_box()[axis_cmp].start as u64);
+                        let midpoint = hittables.len() / 2;
+                        let (l, r) = hittables.split_at_mut(midpoint);
+                        let idx = nodes.len();
+                        let root = BvhNode::Tree(idx + 1, 0, bbox);
+                        nodes.push(root);
+                        dfs.push(BuildRec::Recurse(r));
+                        dfs.push(BuildRec::SetRight(idx));
+                        dfs.push(BuildRec::Recurse(l));
+                    }
+                }
             }
-            build_rec(nodes, r);
+            BuildRec::SetRight(idx) => {
+                let right_idx = nodes.len();
+                match &mut nodes[idx] {
+                    BvhNode::Tree(_, right, _) => *right = right_idx,
+                    _ => panic!("bad index"),
+                }
+            }
         }
     }
+    nodes
 }
 
 impl<'a, T: Hittable + Material> Bvh<'a, T> {
     pub fn new(hittables: &'a mut [T]) -> Self {
-        let mut nodes = vec![];
-        build_rec(&mut nodes, hittables);
+        let nodes = build_tree(hittables);
         Self { nodes }
     }
 }
@@ -90,7 +104,7 @@ impl<'a, T: Hittable + Material> Hittable for Bvh<'a, T> {
     fn bounding_box(&self) -> AABB {
         match &self.nodes[0] {
             BvhNode::Tree(_, _, aabb) => aabb.clone(),
-            BvhNode::Leaf(_) => unreachable!(),
+            BvhNode::Leaf(leaf) => leaf.bounding_box(),
         }
     }
 }
